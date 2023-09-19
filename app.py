@@ -66,8 +66,12 @@ def create_tweet(messages, model):
         model=model,
         messages=messages,
     )
-    messages.append(response['choices'][0]['message'])
+    st.session_state['messages'].append(response['choices'][0]['message'])
     return response['choices'][0]['message']['content']
+
+
+def give_feedback(feedback):
+    st.session_state['messages'].append({'role': 'user', 'content': feedback})
 
 
 # run application below
@@ -78,25 +82,48 @@ openai.api_key = config['OPENAI_API_KEY']
 model = 'gpt-3.5-turbo' # make this a dynamic user choice
 
 st.title('Sojourn Twitter Bot')
+
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = None
+
 article_url = st.text_input("Enter the post's URL")
 
-if article_url:
+start_button = st.button('Create Tweet')
+
+if start_button:
     text = extract_article_text(
         request_article(article_url),
         check_url(article_url)
     )
 
-    messages = generate_prompt(
+    st.session_state['messages'] = generate_prompt(
         system_directive, 
         text
     )
 
-    num_tokens = num_tokens_from_messages(messages, model)
+    num_tokens = num_tokens_from_messages(st.session_state['messages'], 
+                                          model
+                                          )
     print(f'The messages total {num_tokens} tokens.')
 
-    st.write(create_tweet(messages, model))
+    st.write(create_tweet(st.session_state['messages'], 
+                          model)
+                          )
 
-    # create buttons for accept and retry
-    try_again = st.button(label='Try Again')
+# create buttons for accept and retry
+try_again = st.button(label='Try Again')
+if try_again:
+    if 'try_again' not in st.session_state:
+        st.session_state['try_again'] = 'yes'
 
+if 'try_again' in st.session_state:
+    if st.session_state['try_again'] == 'yes':
+        feedback = st.text_input('Provide feedback to GPT')
+        if feedback:
+            give_feedback(feedback)
+            print('appended feedback/n') # for testing
+            print(feedback) # for testing
+            st.write(create_tweet(st.session_state['messages'],
+                                  model))
 
+# 'Current session state: ', st.session_state
