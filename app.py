@@ -9,13 +9,6 @@ import tiktoken
 from helpers import num_tokens_from_messages
 from prompt import system_directive, generate_prompt
 
-config = dotenv_values('.env')
-openai.api_key = config['OPENAI_API_KEY']
-
-model = 'gpt-3.5-turbo' # make this a dynamic user choice
-
-st.title('Sojourn Twitter Bot')
-article_url = st.text_input("Enter the post's URL")
 
 def request_article(article_url):
     try:
@@ -68,33 +61,42 @@ def extract_article_text(
         return text
 
 
-text = extract_article_text(
-    request_article(article_url),
-    check_url(article_url)
-)
-
-# use tiktoken to calculate the number of tokens in list of messages
-
-messages = generate_prompt(
-    system_directive, 
-    text
-)
-
-num_tokens = num_tokens_from_messages(messages, model)
-print(f'The messages total {num_tokens} tokens.')
-
-
 def create_tweet(messages, model):
     response = openai.ChatCompletion.create(
         model=model,
         messages=messages,
     )
+    messages.append(response['choices'][0]['message'])
     return response['choices'][0]['message']['content']
 
-st.write(create_tweet(messages, model))
 
-# create buttons for accept and retry
-accepted = st.button(label='Accept')
-print(accepted)
+# run application below
 
-print(messages)
+config = dotenv_values('.env')
+openai.api_key = config['OPENAI_API_KEY']
+
+model = 'gpt-3.5-turbo' # make this a dynamic user choice
+
+st.title('Sojourn Twitter Bot')
+article_url = st.text_input("Enter the post's URL")
+
+if article_url:
+    text = extract_article_text(
+        request_article(article_url),
+        check_url(article_url)
+    )
+
+    messages = generate_prompt(
+        system_directive, 
+        text
+    )
+
+    num_tokens = num_tokens_from_messages(messages, model)
+    print(f'The messages total {num_tokens} tokens.')
+
+    st.write(create_tweet(messages, model))
+
+    # create buttons for accept and retry
+    try_again = st.button(label='Try Again')
+
+
